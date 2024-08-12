@@ -1,0 +1,32 @@
+[package]
+name = "rust-tello"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.38"
+lazy_static = "1.5.0"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+
+[lib]
+name = "rust_tello"
+path = "src/lib.rs"
+
+[dev-dependencies]
+rust-gamepad = { git = "https://github.com/mixaal/rust-gamepad/" }
+
+[[example]]
+name = "hello_tello"
+path = "examples/hello_tello/main.rs"
+
+[[example]]
+name = "video_tello"
+path = "examples/video/main.rs"
+
+[[example]]
+name = "fly_tello"
+path = "examples/fly/main.rs"
