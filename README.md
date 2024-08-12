@@ -1,4 +1,6 @@
 # rust-tello
+
+![build status](https://github.com/mixaal/rust-tello/actions/workflows/rust.yml/badge.svg)
 ryze tello drone controller library
 
 ## Credits: 
