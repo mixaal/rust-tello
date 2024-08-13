@@ -43,196 +43,13 @@ use crate::{
         self, FileChunk, FileInternal, FilePiece, FileType, FlightData, LightData, LogData,
         TelloPacket, WifiData,
     },
-    utils, VideoPublishChannel, VideoRecvChannel,
+    utils, UpdateData, UpdateDataPublishChannel, VideoPublishChannel, VideoRecvChannel,
 };
 
 const RC_VAL_MIN: i16 = 364;
 const RC_VAL_MAX: i16 = 1684;
 
 // pub type VideoFrameHandler = Arc<dyn Fn(usize, &Vec<u8>) -> () + Send + Sync>;
-
-pub struct TelloController {
-    video: Arc<RwLock<bool>>,
-    inner: Arc<Tello>,
-}
-
-impl TelloController {
-    pub fn new() -> Self {
-        Self {
-            video: Arc::new(RwLock::new(false)),
-            inner: Arc::new(Tello::new()),
-        }
-    }
-
-    pub fn start_mplayer(&self, video_channel: VideoRecvChannel) -> Option<JoinHandle<()>> {
-        let method_name = "start_mplayer";
-        let mut err_cnt = 0;
-        let stdin = utils::start_mplayer_with_stdin(false);
-        if stdin.is_none() {
-            return None;
-        }
-        let mut stdin = stdin.unwrap();
-        let jh = thread::spawn(move || loop {
-            let video_data = video_channel.recv();
-            if video_data.is_err() {
-                tracing::warn!(
-                    method_name,
-                    "can't get video data: {}",
-                    video_data.err().unwrap()
-                );
-                err_cnt += 1;
-                if err_cnt > 10 {
-                    return;
-                }
-                continue;
-            }
-            err_cnt = 0; //reset error counter
-            let video_data = video_data.unwrap();
-            utils::append_to_file("video.dump", &video_data);
-            let r = stdin.write_all(&video_data);
-            if r.is_err() {
-                tracing::warn!(
-                    method_name,
-                    "unable to write data to maplyer: {}",
-                    r.err().unwrap()
-                );
-            }
-        });
-        Some(jh)
-    }
-
-    pub fn set_sticks(&self, st: &Stick) {
-        let mut g = self.inner.stick.write().unwrap();
-        *g = st.clone();
-    }
-
-    pub fn takeoff(&self) {
-        self.inner.takeoff();
-    }
-
-    pub fn land(&self) {
-        self.inner.land();
-    }
-
-    pub fn forward(&self, amt: f32) {
-        self.inner.forward(amt);
-    }
-
-    pub fn backward(&self, amt: f32) {
-        self.inner.backward(amt);
-    }
-
-    pub fn up(&self, amt: f32) {
-        self.inner.up(amt);
-    }
-
-    pub fn down(&self, amt: f32) {
-        self.inner.down(amt);
-    }
-
-    pub fn left(&self, amt: f32) {
-        self.inner.left(amt);
-    }
-
-    pub fn right(&self, amt: f32) {
-        self.inner.right(amt);
-    }
-
-    pub fn turn_clockwise(&self, amt: f32) {
-        self.inner.turn_clockwise(amt);
-    }
-
-    pub fn turn_counter_clockwise(&self, amt: f32) {
-        self.inner.turn_counter_clockwise(amt);
-    }
-
-    pub fn hover(&self) {
-        self.inner.hover();
-    }
-
-    pub fn flying(&self) -> bool {
-        let g = self.inner.flying.read().unwrap();
-        *g
-    }
-
-    // Receive the control data from the tello
-    pub fn start_ctrl_receiver(&self) -> JoinHandle<()> {
-        let self_local = self.inner.clone();
-        let j = thread::spawn(move || self_local.ctrl_receiver());
-        j
-    }
-
-    // Captures the video data
-    pub fn start_video_receiver(&self, video_channel: VideoPublishChannel) -> JoinHandle<()> {
-        let self_local = self.inner.clone();
-        let j = thread::spawn(move || self_local.video_receiver(video_channel));
-        j
-    }
-
-    // Send movement updates to the drone
-    pub fn start_stick_update(&self) -> JoinHandle<()> {
-        let self_local = self.inner.clone();
-        let j = thread::spawn(move || self_local.send_update_sticks());
-        j
-    }
-
-    pub fn toggle_video(&mut self) {
-        let mut g = self.video.write().unwrap();
-        *g = !*g;
-    }
-
-    pub fn start_video_contoller(&self) -> JoinHandle<()> {
-        let self_local = self.inner.clone();
-        let video = self.video.clone();
-        let j = thread::spawn(move || loop {
-            let g = video.read().unwrap();
-            let video_on = *g;
-            drop(g);
-            if video_on {
-                self_local.query_video_sps_pps();
-            }
-
-            thread::sleep(Duration::from_millis(500));
-        });
-        j
-    }
-
-    pub fn is_connected(&self) -> bool {
-        self.inner.connected.load(Ordering::Relaxed)
-    }
-
-    pub fn connect(&mut self) {
-        let method_name = "tello_connect";
-        tracing::info!(
-            method_name,
-            self.inner.remote_addr,
-            self.inner.video_port,
-            "start"
-        );
-        let msg = messages::connect(self.inner.video_port);
-        let r = self.inner.ctrl_conn.send_to(&msg, &self.inner.remote_addr);
-        if r.is_err() {
-            let errmsg = format!("can't connect to tello: {}", r.unwrap_err());
-            utils::fatal(&errmsg);
-        }
-        let sent_bytes = r.unwrap();
-        tracing::info!(method_name, sent_bytes, "connecting...");
-    }
-
-    pub fn take_picture(&self) {
-        let method_name = "take_picture";
-        tracing::debug!(method_name, self.inner.remote_addr, "send");
-        let msg = messages::take_picture(self.inner.ctrl_seq.fetch_add(1, Ordering::Relaxed));
-        let r = self.inner.ctrl_conn.send_to(&msg, &self.inner.remote_addr);
-        if r.is_err() {
-            tracing::warn!(method_name, "unable to take picture: {}", r.unwrap_err());
-        }
-    }
-
-    pub fn query_video_sps_pps(&self) {
-        self.inner.query_video_sps_pps()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Stick {
@@ -263,7 +80,7 @@ impl Stick {
 }
 
 #[derive(Debug)]
-pub struct Tello {
+pub(crate) struct Tello {
     pub ctrl_port: u16,
     pub local_port: u16,
     pub video_port: u16,
@@ -273,10 +90,10 @@ pub struct Tello {
     pub video_conn: UdpSocket,
     pub connected: &'static AtomicBool,
     pub ctrl_dumper: Option<ConnDumper>,
-    ctrl_seq: &'static AtomicU16,
+    pub(crate) ctrl_seq: &'static AtomicU16,
     files: Arc<RwLock<HashMap<u16, FileInternal>>>,
-    stick: Arc<RwLock<Stick>>,
-    flying: Arc<RwLock<bool>>,
+    pub(crate) stick: Arc<RwLock<Stick>>,
+    pub(crate) flying: Arc<RwLock<bool>>,
 }
 
 impl Clone for Tello {
@@ -330,7 +147,7 @@ impl Tello {
         }
     }
 
-    fn takeoff(&self) {
+    pub(crate) fn takeoff(&self) {
         let method_name = "takeoff";
         tracing::debug!(method_name, "send");
         let msg = messages::do_takeoff(self.ctrl_seq.fetch_add(1, Ordering::Relaxed));
@@ -340,7 +157,7 @@ impl Tello {
         }
     }
 
-    fn land(&self) {
+    pub(crate) fn land(&self) {
         let method_name = "land";
         tracing::debug!(method_name, "send");
         let msg = messages::do_land(self.ctrl_seq.fetch_add(1, Ordering::Relaxed));
@@ -350,7 +167,7 @@ impl Tello {
         }
     }
 
-    fn forward(&self, amt: f32) {
+    pub(crate) fn forward(&self, amt: f32) {
         let method_name = "forward";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, amt), (0.0, 0.0));
@@ -358,7 +175,7 @@ impl Tello {
         g.ry = amt;
     }
 
-    fn backward(&self, amt: f32) {
+    pub(crate) fn backward(&self, amt: f32) {
         let method_name = "backward";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, -amt), (0.0, 0.0));
@@ -366,7 +183,7 @@ impl Tello {
         g.ry = -amt;
     }
 
-    fn left(&self, amt: f32) {
+    pub(crate) fn left(&self, amt: f32) {
         let method_name = "left";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((-amt, 0.0), (0.0, 0.0));
@@ -374,7 +191,7 @@ impl Tello {
         g.rx = -amt;
     }
 
-    fn right(&self, amt: f32) {
+    pub(crate) fn right(&self, amt: f32) {
         let method_name = "right";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((amt, 0.0), (0.0, 0.0));
@@ -382,7 +199,7 @@ impl Tello {
         g.rx = amt;
     }
 
-    fn up(&self, amt: f32) {
+    pub(crate) fn up(&self, amt: f32) {
         let method_name = "up";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, 0.0), (0.0, amt));
@@ -391,7 +208,7 @@ impl Tello {
         // *g = st.clone();
     }
 
-    fn down(&self, amt: f32) {
+    pub(crate) fn down(&self, amt: f32) {
         let method_name = "down";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, 0.0), (0.0, -amt));
@@ -400,7 +217,7 @@ impl Tello {
         g.ly = -amt;
     }
 
-    fn turn_clockwise(&self, amt: f32) {
+    pub(crate) fn turn_clockwise(&self, amt: f32) {
         let method_name = "turn_clockwise";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, 0.0), (amt, 0.0));
@@ -409,7 +226,7 @@ impl Tello {
         g.lx = amt;
     }
 
-    fn turn_counter_clockwise(&self, amt: f32) {
+    pub(crate) fn turn_counter_clockwise(&self, amt: f32) {
         let method_name = "turn_counter_clockwise";
         tracing::debug!(method_name, amt, "update");
         // let st = Stick::new((0.0, 0.0), (-amt, 0.0));
@@ -418,7 +235,7 @@ impl Tello {
         g.lx = -amt;
     }
 
-    fn hover(&self) {
+    pub(crate) fn hover(&self) {
         let method_name = "hover";
         tracing::debug!(method_name, "update");
         let st = Stick::new((0.0, 0.0), (0.0, 0.0));
@@ -426,7 +243,7 @@ impl Tello {
         *g = st.clone();
     }
 
-    fn send_file_size(&self) {
+    pub(crate) fn send_file_size(&self) {
         let method_name = "send_file_size";
         tracing::debug!(method_name, "send");
         let msg = messages::ack_file_size(self.ctrl_seq.fetch_add(1, Ordering::Relaxed));
@@ -436,7 +253,7 @@ impl Tello {
         }
     }
 
-    fn ack_file_piece(&self, done: bool, f_id: u16, piece_no: u32) {
+    pub(crate) fn ack_file_piece(&self, done: bool, f_id: u16, piece_no: u32) {
         let method_name = "ack_file_piece";
         tracing::debug!(method_name, self.remote_addr, done, f_id, piece_no, "send");
         let msg = messages::ack_file_piece(
@@ -451,7 +268,7 @@ impl Tello {
         }
     }
 
-    fn ack_file_done(&self, f_id: u16, size: u32) {
+    pub(crate) fn ack_file_done(&self, f_id: u16, size: u32) {
         let method_name = "ack_file_done";
         tracing::debug!(method_name, self.remote_addr, f_id, size, "send");
         let msg = messages::file_done(self.ctrl_seq.fetch_add(1, Ordering::Relaxed), f_id, size);
@@ -461,7 +278,7 @@ impl Tello {
         }
     }
 
-    fn ack_log_header(&self, pl: &Vec<u8>) {
+    pub(crate) fn ack_log_header(&self, pl: &Vec<u8>) {
         let method_name = "ack_log_header";
         tracing::debug!(method_name, self.remote_addr, "send");
         let buf: [u8; 2] = [pl[0], pl[1]];
@@ -473,7 +290,7 @@ impl Tello {
         }
     }
 
-    fn send_date_time(&self) {
+    pub(crate) fn send_date_time(&self) {
         let now = chrono::Local::now();
         let method_name = "send_date_time";
         tracing::debug!(method_name, self.remote_addr, "send");
@@ -508,7 +325,7 @@ impl Tello {
         }
     }
 
-    pub fn process_packet(&self, pkt: &TelloPacket) {
+    pub fn process_packet(&self, pkt: &TelloPacket, tx: &UpdateDataPublishChannel) {
         let method_name = "process_packet";
         match pkt.message_id {
             messages::MSG_DO_LAND => {
@@ -579,11 +396,13 @@ impl Tello {
                 let mut g = self.flying.write().unwrap();
                 *g = flight_data.flying;
                 drop(g);
+                tx.send(UpdateData::from_flight_data(flight_data));
             }
             messages::MSG_LIGHT_STRENGTH => {
                 tracing::info!(method_name, "light strength received");
                 let light_strength = LightData::new(&pkt.payload);
                 tracing::info!(method_name, "light data: {:?}", light_strength);
+                tx.send(UpdateData::from_light_data(light_strength));
             }
             messages::MSG_LOG_CONFIG => {
                 tracing::info!(method_name, "log config received");
@@ -596,6 +415,7 @@ impl Tello {
                 tracing::info!(method_name, "log data received");
                 let log_data = LogData::new(&pkt.payload);
                 tracing::info!("log_data={:?}", log_data);
+                tx.send(UpdateData::from_log_data(log_data));
             }
             messages::MSG_QUERY_HEIGHT_LIMIT => {
                 tracing::info!(method_name, "max height received");
@@ -629,6 +449,7 @@ impl Tello {
                 tracing::info!(method_name, "wifi strength info received");
                 let info = WifiData::new(&pkt.payload);
                 tracing::info!(method_name, "wifi data: {:?}", info);
+                tx.send(UpdateData::from_wifi_data(info));
             }
             _ => {
                 let cmd = pkt.message_id;
@@ -637,7 +458,7 @@ impl Tello {
         };
     }
 
-    fn ctrl_receiver(&self) {
+    pub(crate) fn ctrl_receiver(&self, tx: UpdateDataPublishChannel) {
         let method_name = "ctrl_recv";
         let mut buff: [u8; 4096] = [0; 4096];
 
@@ -664,11 +485,11 @@ impl Tello {
                 continue;
             }
             let pkt = TelloPacket::from_buffer(&buff);
-            self.process_packet(&pkt);
+            self.process_packet(&pkt, &tx);
         }
     }
 
-    fn video_receiver(&self, video_channel: VideoPublishChannel) {
+    pub(crate) fn video_receiver(&self, video_channel: VideoPublishChannel) {
         let method_name = "video_recv";
         let mut buff: [u8; 2048] = [0; 2048];
 
@@ -718,7 +539,7 @@ impl Tello {
         }
     }
 
-    fn send_update_sticks(&self) {
+    pub(crate) fn send_update_sticks(&self) {
         let method_name = "update_sticks";
         loop {
             let start = Instant::now();
@@ -762,6 +583,44 @@ impl Tello {
                     sleep_duration.try_into().expect("too big value to fit"),
                 ));
             }
+        }
+    }
+}
+
+impl UpdateData {
+    pub(crate) fn from_flight_data(flight: FlightData) -> Self {
+        Self {
+            flight: Some(flight),
+            wifi: None,
+            light: None,
+            log: None,
+        }
+    }
+
+    pub(crate) fn from_wifi_data(wifi: WifiData) -> Self {
+        Self {
+            flight: None,
+            wifi: Some(wifi),
+            light: None,
+            log: None,
+        }
+    }
+
+    pub(crate) fn from_light_data(light: LightData) -> Self {
+        Self {
+            flight: None,
+            wifi: None,
+            light: Some(light),
+            log: None,
+        }
+    }
+
+    pub(crate) fn from_log_data(log: LogData) -> Self {
+        Self {
+            flight: None,
+            wifi: None,
+            light: None,
+            log: Some(log),
         }
     }
 }

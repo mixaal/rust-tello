@@ -1,7 +1,7 @@
 use std::{thread, time::Duration};
 
 use rust_gamepad::gamepad::{self, Buttons, Gamepad, GamepadState};
-use rust_tello::tello::TelloController;
+use rust_tello::TelloController;
 
 const SENSITIVITY: f32 = 1.0;
 
@@ -14,7 +14,8 @@ pub fn main() {
     js.background_handler();
     let mut tello = TelloController::new();
 
-    let _h = tello.start_ctrl_receiver();
+    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let _h = tello.start_ctrl_receiver(update_tx);
 
     tello.connect();
     loop {

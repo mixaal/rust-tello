@@ -1,6 +1,6 @@
 use std::{thread, time::Duration};
 
-use rust_tello::tello::TelloController;
+use rust_tello::TelloController;
 
 pub fn main() {
     tracing_subscriber::fmt()
@@ -8,8 +8,8 @@ pub fn main() {
         .init();
 
     let mut tello = TelloController::new();
-
-    let h = tello.start_ctrl_receiver();
+    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let h = tello.start_ctrl_receiver(update_tx);
     tello.connect();
     loop {
         tracing::info!("waiting to connect to tello...");

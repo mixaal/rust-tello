@@ -402,7 +402,7 @@ impl FileChunk {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct WifiData {
+pub struct WifiData {
     wifi_interference: u8,
     wifi_strength: u8,
 }
@@ -418,7 +418,7 @@ impl WifiData {
 
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct LightData {
+pub struct LightData {
     light_strength: u8,
     light_strength_updated: u128,
 }
@@ -449,7 +449,7 @@ pub(crate) struct MVOData {
 }
 
 #[derive(Debug)]
-pub(crate) struct LogData {
+pub struct LogData {
     imu: Option<IMUData>,
     mvo: Option<MVOData>,
 }
@@ -568,7 +568,7 @@ impl LogData {
 // at varying rates.
 #[derive(Debug)]
 #[allow(dead_code)]
-pub(crate) struct FlightData {
+pub struct FlightData {
     battery_critical: bool,
     battery_low: bool,
     battery_milli_volts: i16,
@@ -1239,9 +1239,10 @@ mod tests {
             }
             // println!("{}", frame);
             let buff = fs::read(frame).unwrap();
+            let (update_tx, update_rx) = crate::comm_channel();
 
             let pkt = TelloPacket::from_buffer(&buff);
-            tello.process_packet(&pkt);
+            tello.process_packet(&pkt, &update_tx);
             // println!("pkt={:?}", pkt);
         }
     }

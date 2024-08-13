@@ -1,6 +1,6 @@
 use std::{sync::mpsc, thread, time::Duration};
 
-use rust_tello::tello::TelloController;
+use rust_tello::TelloController;
 
 pub fn main() {
     tracing_subscriber::fmt()
@@ -10,7 +10,8 @@ pub fn main() {
     let (tx, rx) = mpsc::channel();
     let mut tello = TelloController::new();
 
-    let h = tello.start_ctrl_receiver();
+    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let h = tello.start_ctrl_receiver(update_tx);
     tello.start_video_receiver(tx);
 
     tello.start_video_contoller(); // send video request every 500ms if video is on
