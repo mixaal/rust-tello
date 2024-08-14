@@ -34,6 +34,7 @@ pub fn comm_channel() -> UpdateDataChannel {
     mpsc::channel()
 }
 
+#[derive(Debug)]
 pub struct UpdateData {
     flight: Option<FlightData>,
     wifi: Option<WifiData>,

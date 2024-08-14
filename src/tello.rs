@@ -415,7 +415,9 @@ impl Tello {
                 tracing::info!(method_name, "log data received");
                 let log_data = LogData::new(&pkt.payload);
                 tracing::info!("log_data={:?}", log_data);
-                tx.send(UpdateData::from_log_data(log_data));
+                if log_data.imu.is_some() || log_data.mvo.is_some() {
+                    tx.send(UpdateData::from_log_data(log_data));
+                }
             }
             messages::MSG_QUERY_HEIGHT_LIMIT => {
                 tracing::info!(method_name, "max height received");

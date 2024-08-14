@@ -184,6 +184,7 @@ pub(crate) fn bytes_to_f32(buff: &Vec<u8>, index: usize) -> Result<f32, String> 
         buff[index + 2],
         buff[index + 3],
     ];
+    tracing::debug!("bytes_f32= {:?}", b);
     Ok(f32::from_le_bytes(b))
 }
 

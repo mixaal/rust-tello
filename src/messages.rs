@@ -453,8 +453,8 @@ pub(crate) struct MVOData {
 
 #[derive(Debug)]
 pub struct LogData {
-    imu: Option<IMUData>,
-    mvo: Option<MVOData>,
+    pub(crate) imu: Option<IMUData>,
+    pub(crate) mvo: Option<MVOData>,
 }
 
 const logValidVelX: u8 = 0x01;
@@ -496,6 +496,7 @@ impl LogData {
 
                     let mut offset = 10;
                     let flags = data[offset + 76];
+                    tracing::debug!(flags, "mvo");
 
                     let vx = if flags & logValidVelX != 0 {
                         Some(utils::get_i16(&xorBuf, offset + 2, offset + 3))
@@ -511,7 +512,7 @@ impl LogData {
                     };
                     let vz = if flags & logValidVelZ != 0 {
                         //tello.fd.MVO.VelocityZ = -(int16(xorBuf[offset+6]) + int16(xorBuf[offset+7])<<8)
-                        Some(utils::get_i16(&xorBuf, offset + 6, offset + 7))
+                        Some(-utils::get_i16(&xorBuf, offset + 6, offset + 7))
                     } else {
                         None
                     };
@@ -520,11 +521,12 @@ impl LogData {
                         && flags & logValidPosX != 0
                         && flags & logValidPosZ != 0
                     {
-                        let py = utils::bytes_to_f32(&xorBuf, 8).expect("py conversion went wrong");
-                        let px =
-                            utils::bytes_to_f32(&xorBuf, 12).expect("px conversion went wrong");
-                        let pz =
-                            utils::bytes_to_f32(&xorBuf, 16).expect("pz conversion went wrong");
+                        let py = utils::bytes_to_f32(&xorBuf, offset + 8)
+                            .expect("py conversion went wrong");
+                        let px = utils::bytes_to_f32(&xorBuf, offset + 12)
+                            .expect("px conversion went wrong");
+                        let pz = utils::bytes_to_f32(&xorBuf, offset + 16)
+                            .expect("pz conversion went wrong");
 
                         Some(utils::Vec3::new(px, py, pz))
                     } else {
@@ -543,12 +545,17 @@ impl LogData {
                 logRecIMU => {
                     //log.Println("IMU rec found")
                     let xorBuf = utils::decode_buffer(data, xorVal, pos, recLen);
-
+                    tracing::debug!(xorVal, "xor_buf={:?}", xorBuf);
                     let offset = 10;
-                    let qw = utils::bytes_to_f32(&xorBuf, 48).expect("quater w decode failed");
-                    let qx = utils::bytes_to_f32(&xorBuf, 52).expect("quater x decode failed");
-                    let qy = utils::bytes_to_f32(&xorBuf, 56).expect("quater y decode failed");
-                    let qz = utils::bytes_to_f32(&xorBuf, 60).expect("quater z decode failed");
+                    let qw =
+                        utils::bytes_to_f32(&xorBuf, offset + 48).expect("quater w decode failed");
+                    let qx =
+                        utils::bytes_to_f32(&xorBuf, offset + 52).expect("quater x decode failed");
+                    let qy =
+                        utils::bytes_to_f32(&xorBuf, offset + 56).expect("quater y decode failed");
+                    let qz =
+                        utils::bytes_to_f32(&xorBuf, offset + 60).expect("quater z decode failed");
+                    tracing::debug!("qw={qw}, qx={qx}, qy={qy}, qz={qz}");
                     let temp = utils::get_u16(&xorBuf, offset + 106, offset + 107) / 100;
                     let (pitch, roll, yaw) = utils::quat_to_euler_deg(qx, qy, qz, qw);
                     imu = Some(IMUData {
@@ -917,7 +924,7 @@ pub fn send_date_time(
 
 #[cfg(test)]
 mod tests {
-    use crate::tello::Tello;
+    use crate::{tello::Tello, UpdateData, UpdateDataPublishChannel};
 
     use super::*;
     use base64::prelude::*;
@@ -1234,9 +1241,10 @@ mod tests {
 
     #[test]
     fn test_panic_on_buffer() {
-        tracing_subscriber::fmt()
+        let subscriber = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)
-            .init();
+            .finish();
+        let r = tracing::subscriber::set_global_default(subscriber);
         let tello = Tello::new();
         for pkt_no in 0..=1542 {
             let frame = format!("dump_comm/ctrl_comm/dump_comm_1720968871/packet_{pkt_no}");
@@ -1250,28 +1258,136 @@ mod tests {
 
             let pkt = TelloPacket::from_buffer(&buff);
             tello.process_packet(&pkt, &update_tx);
-            // println!("pkt={:?}", pkt);
+            println!("pkt={:?}", pkt);
         }
     }
 
     #[test]
     fn test_log_data() {
-        let tello = Tello::new();
-        let packet_data = "9Ow4iV9aNNJi74whCABFAAQQAKcAAP8RIeLAqAoBwKgKAiK50R8D/G1IzKAfT4hREFcBAFWEAM8ACIY8fACGhoaGhoaGhoaGhoaGhoaGPRSgwjAhXjrg4ds9ryvzOfNbCToQ9o+6fPLduoaGhgaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhorehICNhoaGhoaGoYYC2VVMAA0QCOw8fADs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsbOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozk7Ozs+Ozs7OzsgjRVNADNoAgYPXwAGBgYGBgYGBgYGBgYGBgYGBgYGJgYGBgYGBgYGBgYGBgYGBgYDBgYGGMxVTgAgOgDNVd/AD81NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1wTS9JjU1NTU1NTU1JDAvJDU1E9dVHAB66QNHV38AR0dHR0dHR0dHR0dHR0ebQvBeVYQAzwAIDdB/AA0NDQ0NDQ0NDQ0NDQ0NDQ0ngytJSZG1sTqFkLFR9HayX80usWWazjeZogYxDQ0NjQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ30BlUPAQYNDQ0NDQ1CDW4MVUwADRAIc9B/AHNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Pzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3tzc3Fbc3Nzc3M57FU0AM2gCKDQfwCgoKCgoKCgoKCgoKCgoKCgoKCgIKCgoKCgoKCgoKCgoKCgoKCIoKCg4MZVEAA3ZieX/n8Al5eXlwvIVVwA4WUnxP5/AMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEnd9VhADPAAiSY4MAkpKSkpKSkpKSkpKSkpKSkgsbtNZVrC0u0YkNLuxn6S021roupEkXKCc2n66SkpISkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkmGZypCDmZKSkpKSkuWSsCRVTAANEAj5Y4MA+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+Xn5+fn5+fn5+fn5+fn5+fn5+fn5+fn58fn5+cX5+fn5+UmGVTQAzaAIJmSDACYmJiYmJiYmJiYmJiYmJiYmJiamJiYmJiYmJiYmJiYmJiYmJhomJianmFU4AIDoA0d+hgBTR0dHR0dHR0dHR0dHR0dHR0e5rA==";
+        let (update_tx, update_rx) = crate::comm_channel();
+
+        test_packet_log(update_tx, "9Ow4iV9aNNJi74whCABFAAQQAKcAAP8RIeLAqAoBwKgKAiK50R8D/G1IzKAfT4hREFcBAFWEAM8ACIY8fACGhoaGhoaGhoaGhoaGhoaGPRSgwjAhXjrg4ds9ryvzOfNbCToQ9o+6fPLduoaGhgaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhorehICNhoaGhoaGoYYC2VVMAA0QCOw8fADs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsbOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozk7Ozs+Ozs7OzsgjRVNADNoAgYPXwAGBgYGBgYGBgYGBgYGBgYGBgYGJgYGBgYGBgYGBgYGBgYGBgYDBgYGGMxVTgAgOgDNVd/AD81NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1wTS9JjU1NTU1NTU1JDAvJDU1E9dVHAB66QNHV38AR0dHR0dHR0dHR0dHR0ebQvBeVYQAzwAIDdB/AA0NDQ0NDQ0NDQ0NDQ0NDQ0ngytJSZG1sTqFkLFR9HayX80usWWazjeZogYxDQ0NjQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ30BlUPAQYNDQ0NDQ1CDW4MVUwADRAIc9B/AHNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Pzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3tzc3Fbc3Nzc3M57FU0AM2gCKDQfwCgoKCgoKCgoKCgoKCgoKCgoKCgIKCgoKCgoKCgoKCgoKCgoKCIoKCg4MZVEAA3ZieX/n8Al5eXlwvIVVwA4WUnxP5/AMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEnd9VhADPAAiSY4MAkpKSkpKSkpKSkpKSkpKSkgsbtNZVrC0u0YkNLuxn6S021roupEkXKCc2n66SkpISkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkmGZypCDmZKSkpKSkuWSsCRVTAANEAj5Y4MA+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+Xn5+fn5+fn5+fn5+fn5+fn5+fn5+fn58fn5+cX5+fn5+UmGVTQAzaAIJmSDACYmJiYmJiYmJiYmJiYmJiYmJiamJiYmJiYmJiYmJiYmJiYmJhomJianmFU4AIDoA0d+hgBTR0dHR0dHR0dHR0dHR0dHR0e5rA==");
+        let update = update_rx.recv().expect("log data");
+        assert!(update.log.is_some());
+        let log_data = update.log.unwrap();
+        assert!(log_data.imu.is_some());
+        let imu = log_data.imu.unwrap();
+        assert_eq!(30, imu.temperature);
+        assert!(imu.pitch.abs() < f64::EPSILON);
+        assert!(imu.roll.abs() < f64::EPSILON);
+        assert!(imu.yaw.abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_log_data2() {
+        let packet_data = "9Ow4iV9aNNJi74whCABFAAHtHh8AAP8RBo3AqAoBwKgKAiK50R8B2WrwzIgOO4hREOAFAFUSAKauBjxbmAo8jGZ5PDzzFFUiAIsaBZdnmQoil3SXEWjXhyKXdJcRaNeHS4aXl3+UvABVMQAyGQUZeZkKG6XtAiOeTHklodTqpQm6sCWjMmAlfTdEojOHiSVbqOci7QegoxGWVYQAzwAICICZCggICAgICAgICAgICAgICAhamy5MvyIgM93bb7TlYXC3w8/fNFTfATTb3JYzLpMuTPP4dzfgKgE0v8EqM2AqqLQZcQG1uNe7swgKmDWFMxq1PocGNfJzBTRh2PYzjd+As6h++zMICAgICAhsHIwLMwYICAgICAhbecOlVUwADRAITICZCsF3XvF6w0JxtjdBcBhjIvFYqjbyatdqiAHCnncsl9ByTExMTExMTExMTExMTExMTExMTEyXTGRMGEz8dExMTExTt1U0AM2gCIGAmQrScvO+JTo/uhjTCzsa2yA//xOnxYUsbb15Uxq8gYGBgYGBgYExuYGBAZhVXADhHQAspZkKZina0zAsKSyGmpJsVjVqbhMKhGySG6oZLCwsLFisRm+SG6oZLCwsLJIbqhmSG6oZLCwsLPQbLRGSG6oZLGKMEZIbqhk3A7GSvlJXEVPVLCZFQZsA";
+        let (update_tx, update_rx) = crate::comm_channel();
+        test_packet_log(update_tx, &packet_data);
+        let update = update_rx.recv().expect("log data");
+        println!("{:?}", update);
+
+        assert!(update.log.is_some());
+        let log_data = update.log.unwrap();
+        assert!(log_data.imu.is_some());
+        assert!(log_data.mvo.is_some());
+        let imu = log_data.imu.unwrap();
+        let mvo = log_data.mvo.unwrap();
+        assert_eq!(52, imu.temperature);
+        assert!((imu.pitch - 0.303324619588394).abs() < f64::EPSILON);
+        assert!((imu.roll - 0.953420753718995).abs() < f64::EPSILON);
+        assert!((imu.yaw + 2.2377007352849043).abs() < f64::EPSILON);
+        assert_eq!(-5, mvo.vz.unwrap());
+        assert!(mvo.position.is_none());
+        assert!(mvo.vx.is_none());
+        assert!(mvo.vy.is_none());
+    }
+
+    #[test]
+    fn test_log_data3() {
+        let packet_data = "9Ow4iV9aNNJi74whCABFAALmHm0AAP8RBUbAqAoBwKgKAiK50R8C0mb8zFAWSohREOYFAFUSAKauBjOCnwozg2l2MzNCHlUiAIsaBXeOoAoZd4J3zog5Zxl3gnfOiDln5mZ3d590Zs1VMQAyGQVEoqAKRuQvtX6mw8d42trp+ENppXgAPdb4BVyX/9nUq3j0ivT/Ailp+EiTVYQAzwAIY6qgCmNjY2NjY2NjY2NjY2NjY2OJ9UUncieP2ANMjdgBABncaYdzXmlqyt+baVVZavhFJ/OTHFyl5GpfhtMLWHY8wt9VJnDd40/vXmPzLV/IsWje2iVnXr5gRF+sUZxYDHzr2O8NkFhjY2NjY2MMd2NjWG1jY2NjY2PAEixvVUwADRAIqKqgCgN6oxUR7qyVdauPlEkbyxV3TNAWoTOObFe+6ZSI2zOWqKioqKioqKioqKioqKioqKioqKhzqICo/KhwkKioqKhaqVU0AM2gCN6qoAoTLKzhK4gU5YTL2GfHg39gd0z4mvKxEuKWsFLi3t7e3t7e3t4G5t7exq9VXADhHQD0y6AKuvEBC+70/fRjPUq08+iytvTbXLRKw3LB9PT09J+on7dKw3LB9PT09ErDcsFKw3LB9PT09PklVslKw3LB9OjdyErDcsGW5GxKnrmHyYsN9P4+yFUkACGwBDzpoAo/PDwb6hp4PDw8PDw8PMx9PDw8PDw8PDyFrVUtAJOyBFPpoApSU1PPrFNTrKxSUlNTUlJSUlNTU1NTU1NTU1NTU0uvU1MWXVUTAGKzBF7poApcW16hoRJODmZVlQDnFAWG6aAKgoSHrOF5O6Bg3TiGhoaGhoaGhrwLCztOc2G6hoaGBoaGhoaAhoaGhoaGhoaGhYaGhISHdqM7hoaGhod2ozuMUSW9hobchnyGBYV8htyG3IbehAWF3IbchnyGfIYFhdyG3IaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoZ3eYaGhoaGDpUQegum";
+        let (update_tx, update_rx) = crate::comm_channel();
+        test_packet_log(update_tx, &packet_data);
+        let update = update_rx.recv().expect("log data");
+        println!("{:?}", update);
+
+        assert!(update.log.is_some());
+        let log_data = update.log.unwrap();
+        assert!(log_data.imu.is_some());
+        assert!(log_data.mvo.is_some());
+        let imu = log_data.imu.unwrap();
+        let mvo = log_data.mvo.unwrap();
+        assert_eq!(52, imu.temperature);
+        assert!((imu.pitch - 0.42572309438825817).abs() < f64::EPSILON);
+        assert!((imu.roll - 0.9537320659957234).abs() < f64::EPSILON);
+        assert!((imu.yaw + 2.253996543499859).abs() < f64::EPSILON);
+        assert_eq!(-11, mvo.vx.unwrap());
+        assert_eq!(26, mvo.vy.unwrap());
+        assert_eq!(-9, mvo.vz.unwrap());
+        assert!(mvo.position.is_none());
+    }
+
+    #[test]
+    fn test_log_data4() {
+        let packet_data = "9Ow4iV9aNNJi74whCABFAAHtHrsAAP8RBfHAqAoBwKgKAiK50R8B2au4zIgOO4hREOwFAFUSAKauBj2ppgo9jWd4PT3rFVUiAIsaBY21pwoWjUCNb3L+nRaNQI1vcv6dHZyNjWWO2GBVMQAyGQVmx6cKZModcFuyr/FaL+t72uLz+tq/oxdaQvafXMCvZdvKJ81aCbvJ3Q53VYQAzwAIdM6nCnR0dHR0dHR0dHR0dHR0dHRx5FIw/YdmyMJ1F8goUQ/LoQ9LyFzTvU8e6HBIqu5SMAeEC0tezYBPJxb+T0Vx0MiCdEzKBD+Cz3TgKMgeMnvJTYV2SdQVLEgA+YtPCA3zz2Uch090dHR0dHQfYPB3S3p0dHR0dHSHBYPGVUwADRAIt86nCt3xuAqORrWKF9bvi8Nh7AqmD8EJaS2RcygzJotqfC+Jt7e3t7e3t7e3t7e3t7e3t7e3t7dst5+347e3jre3t7dqulU0AM2gCOvOpwo8B5nUtfhf0Ijh0tFiaUpVIHnNr4R0BNd7L+VX6+vr6+vr6+vr0uvrmPVVXADhHQD58qcKq/wPBuP59/nwI0e5aOe/u8S6UblHzn/M+fn5+Xj2l7pHzn/M+fn5+UfOf8xHzn/M+fn5+abNa8RHzn/M+b3vRUfOf8zSfm9HvCGJxIYA+fOiF43E";
+        let (update_tx, update_rx) = crate::comm_channel();
+        test_packet_log(update_tx, &packet_data);
+        let update = update_rx.recv().expect("log data");
+        println!("{:?}", update);
+
+        assert!(update.log.is_some());
+        let log_data = update.log.unwrap();
+        assert!(log_data.imu.is_some());
+        assert!(log_data.mvo.is_some());
+        let imu = log_data.imu.unwrap();
+        let mvo = log_data.mvo.unwrap();
+        assert_eq!(52, imu.temperature);
+        assert!((imu.roll - 0.8459818959213642).abs() < f64::EPSILON);
+        assert!((imu.pitch - 0.5009636027037578).abs() < f64::EPSILON);
+        assert!((imu.yaw + 2.2908922271035723).abs() < f64::EPSILON);
+        assert_eq!(-10, mvo.vx.unwrap());
+        assert_eq!(26, mvo.vy.unwrap());
+        assert_eq!(-14, mvo.vz.unwrap());
+        assert!(mvo.position.is_none());
+    }
+
+    #[test]
+    fn test_log_data5() {
+        let packet_data = "9Ow4iV9aNNJi74whCABFAAMyJVcAAP8R/g/AqAoBwKgKAiK50R8DHkhQzLAYIIhREO4HAFUSAKauBj55/ww+bmd7Pj4lu1UiAIsaBTCFAA3pyyjP1uqKJenLKM94xIolNxUwMNgzRwRVMQAyGQXGlwANxOoDdfmTdBP5HckPeftv2Pl+nVb4Cj+gefm8PfjIgj/6wyiLeTz5VYQAzwAItJ4ADbS0tLS0tLS0tLS0tLS0tLTtzZLwZ+z7CshnUoks+cULc2aoi0sOyYoaOtELbDCS8G2jwYt1uncIJejkCfu8JYoIojcLqKtYCrQI64i0tLS0tLS0tHdMAoqjxU2PQhAGDqJFWo+0tLS0tLQ+orS0V7q0tLS0tLSHONNAVUwADRAI954ADff39/f39/f3NA9BySmuvzdw169IL3PRM9iJ+8nF47vK9/f39/f39/f39/f39/f39/f39/c399/3o/fXsff39/cWXVU0AM2gCC6fAA0ic1ER7JIDkx4db5MNpNWSwbwIarWOSxCOXi2TLi4uLi4uLi4OaC4ulJ9VXADhHQCzwwANEbW9s09MtbO5u0KIV+Mqj8lmJwgNhDWGs7Ozs7OzM4wNhDWGs7Ozsw2ENYYNhDWGs7Ozs6UuCg0NhDWGs27ijg2ENYZ+f38OuGQQj7uzs7lX5VUkACGwBO/fAA3s7+/IOcmr7+/v7+/v7x+u7+/v7+/v7+8oo1UtAJOyBAXgAA0EBQWZ+gUF2PoEBAUFBAQEBAUFBQUFBQUFBQUFBR35BQXUMlUTAGKzBBDgAA0SgBDv78MFz5VVlQDnFAUy4AANNzIyGFXNjxTUaYwyMjIyMjIyMnJnMA1muPIPMjIysjIyMjI2MDIyMjIyMjIyMTIyMDAzwhePMjIyMjPCF4845ZEJMjJoMsgysTHIMmgyaDJqMLExaDJoMt4yyDKxMWgyaDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjLDzTIyMjIyuiFuMFVMAA0XBWTgAA1kZABkZGRkZGRkAGRkZGRkZGQAZGRkZGRkZABkZGRkZGRkMGRRZPmbZGSvmzBk+ZtkZMibr5v5m2RkUWTIm/mb2ZgEXQ==";
+        let (update_tx, update_rx) = crate::comm_channel();
+        test_packet_log(update_tx, &packet_data);
+        let update = update_rx.recv().expect("log data");
+        println!("{:?}", update);
+
+        assert!(update.log.is_some());
+        let log_data = update.log.unwrap();
+        assert!(log_data.imu.is_some());
+        assert!(log_data.mvo.is_none());
+        let imu = log_data.imu.unwrap();
+
+        assert_eq!(57, imu.temperature);
+        assert!((imu.roll + 4.282562497871982).abs() < f64::EPSILON);
+        assert!((imu.pitch + 4.813630495148491).abs() < f64::EPSILON);
+        assert!((imu.yaw - 33.14411926958298).abs() < f64::EPSILON);
+    }
+
+    fn test_packet_log(update_tx: UpdateDataPublishChannel, packet_data: &str) {
+        // let tello = Tello::new();
+
         let bytes_buffer = BASE64_STANDARD.decode(packet_data.as_bytes()).unwrap()[42..].to_vec();
 
         for bb in bytes_buffer.iter() {
             print!("{:x} ", bb);
         }
-        let (update_tx, update_rx) = crate::comm_channel();
 
         let pkt = TelloPacket::from_buffer(&bytes_buffer);
-        tracing_subscriber::fmt()
+        let subscriber = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)
-            .init();
-        tello.process_packet(&pkt, &update_tx);
-        // println!("pkt={:?}", pkt);
+            .finish();
+        let r = tracing::subscriber::set_global_default(subscriber);
 
-        let r = update_rx.recv().expect("got message");
+        // tello.process_packet(&pkt, &update_tx);
+        let log_data = LogData::new(&pkt.payload);
+        let _ = update_tx.send(UpdateData::from_log_data(log_data));
+        // println!("pkt={:?}", pkt);
     }
 }
