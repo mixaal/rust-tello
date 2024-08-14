@@ -55,6 +55,9 @@ enum VideoMode {
     WIDE,
 }
 
+const logRecNewMVO: u16 = 0x001d;
+const logRecIMU: u16 = 0x0800;
+
 // Tello message IDs
 
 const _MSG_DO_CONNECT: u16 = 0x0001; // 1
@@ -555,6 +558,9 @@ impl LogData {
                         temperature: temp as i16,
                     });
                 }
+                _ => {
+                    tracing::info!(logRecType, "skipping unknown record");
+                }
             }
             pos += recLen as usize;
         }
@@ -914,6 +920,7 @@ mod tests {
     use crate::tello::Tello;
 
     use super::*;
+    use base64::prelude::*;
 
     #[test]
     fn test_do_takeoff() {
@@ -1245,5 +1252,26 @@ mod tests {
             tello.process_packet(&pkt, &update_tx);
             // println!("pkt={:?}", pkt);
         }
+    }
+
+    #[test]
+    fn test_log_data() {
+        let tello = Tello::new();
+        let packet_data = "9Ow4iV9aNNJi74whCABFAAQQAKcAAP8RIeLAqAoBwKgKAiK50R8D/G1IzKAfT4hREFcBAFWEAM8ACIY8fACGhoaGhoaGhoaGhoaGhoaGPRSgwjAhXjrg4ds9ryvzOfNbCToQ9o+6fPLduoaGhgaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhorehICNhoaGhoaGoYYC2VVMAA0QCOw8fADs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsbOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozk7Ozs+Ozs7OzsgjRVNADNoAgYPXwAGBgYGBgYGBgYGBgYGBgYGBgYGJgYGBgYGBgYGBgYGBgYGBgYDBgYGGMxVTgAgOgDNVd/AD81NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1wTS9JjU1NTU1NTU1JDAvJDU1E9dVHAB66QNHV38AR0dHR0dHR0dHR0dHR0ebQvBeVYQAzwAIDdB/AA0NDQ0NDQ0NDQ0NDQ0NDQ0ngytJSZG1sTqFkLFR9HayX80usWWazjeZogYxDQ0NjQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ30BlUPAQYNDQ0NDQ1CDW4MVUwADRAIc9B/AHNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Pzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3tzc3Fbc3Nzc3M57FU0AM2gCKDQfwCgoKCgoKCgoKCgoKCgoKCgoKCgIKCgoKCgoKCgoKCgoKCgoKCIoKCg4MZVEAA3ZieX/n8Al5eXlwvIVVwA4WUnxP5/AMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEnd9VhADPAAiSY4MAkpKSkpKSkpKSkpKSkpKSkgsbtNZVrC0u0YkNLuxn6S021roupEkXKCc2n66SkpISkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkmGZypCDmZKSkpKSkuWSsCRVTAANEAj5Y4MA+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+Xn5+fn5+fn5+fn5+fn5+fn5+fn5+fn58fn5+cX5+fn5+UmGVTQAzaAIJmSDACYmJiYmJiYmJiYmJiYmJiYmJiamJiYmJiYmJiYmJiYmJiYmJhomJianmFU4AIDoA0d+hgBTR0dHR0dHR0dHR0dHR0dHR0e5rA==";
+        let bytes_buffer = BASE64_STANDARD.decode(packet_data.as_bytes()).unwrap()[42..].to_vec();
+
+        for bb in bytes_buffer.iter() {
+            print!("{:x} ", bb);
+        }
+        let (update_tx, update_rx) = crate::comm_channel();
+
+        let pkt = TelloPacket::from_buffer(&bytes_buffer);
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .init();
+        tello.process_packet(&pkt, &update_tx);
+        // println!("pkt={:?}", pkt);
+
+        let r = update_rx.recv().expect("got message");
     }
 }
