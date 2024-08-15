@@ -491,7 +491,7 @@ impl Tello {
         }
     }
 
-    pub(crate) fn video_receiver(&self, video_channel: VideoPublishChannel) {
+    pub(crate) fn video_receiver(&self, video_channel: VideoPublishChannel, min_size: usize) {
         let method_name = "video_recv";
         let mut buff: [u8; 2048] = [0; 2048];
 
@@ -514,7 +514,7 @@ impl Tello {
                 //     break;
                 // }
 
-                if video_data.len() > 262_144 {
+                if video_data.len() > min_size {
                     break;
                 }
             }
