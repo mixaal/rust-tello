@@ -34,12 +34,16 @@ pub fn comm_channel() -> UpdateDataChannel {
     mpsc::channel()
 }
 
+pub fn video_channel() -> VideoChannel {
+    mpsc::channel()
+}
+
 #[derive(Debug)]
 pub struct UpdateData {
-    flight: Option<FlightData>,
-    wifi: Option<WifiData>,
-    light: Option<LightData>,
-    log: Option<LogData>,
+    pub flight: Option<FlightData>,
+    pub wifi: Option<WifiData>,
+    pub light: Option<LightData>,
+    pub log: Option<LogData>,
 }
 
 pub struct TelloController {

@@ -406,8 +406,8 @@ impl FileChunk {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct WifiData {
-    wifi_interference: u8,
-    wifi_strength: u8,
+    pub wifi_interference: u8,
+    pub wifi_strength: u8,
 }
 
 impl WifiData {
@@ -422,8 +422,8 @@ impl WifiData {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct LightData {
-    light_strength: u8,
-    light_strength_updated: u128,
+    pub light_strength: u8,
+    pub light_strength_updated: u128,
 }
 
 impl LightData {
@@ -436,25 +436,25 @@ impl LightData {
 }
 
 #[derive(Debug)]
-pub(crate) struct IMUData {
-    roll: f64,
-    pitch: f64,
-    yaw: f64,
-    temperature: i16,
+pub struct IMUData {
+    pub roll: f64,
+    pub pitch: f64,
+    pub yaw: f64,
+    pub temperature: i16,
 }
 
 #[derive(Debug)]
-pub(crate) struct MVOData {
-    position: Option<utils::Vec3<f32>>,
-    vx: Option<i16>,
-    vy: Option<i16>,
-    vz: Option<i16>,
+pub struct MVOData {
+    pub position: Option<utils::Vec3<f32>>,
+    pub vx: Option<i16>,
+    pub vy: Option<i16>,
+    pub vz: Option<i16>,
 }
 
 #[derive(Debug)]
 pub struct LogData {
-    pub(crate) imu: Option<IMUData>,
-    pub(crate) mvo: Option<MVOData>,
+    pub imu: Option<IMUData>,
+    pub mvo: Option<MVOData>,
 }
 
 const logValidVelX: u8 = 0x01;
@@ -582,38 +582,38 @@ impl LogData {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct FlightData {
-    battery_critical: bool,
-    battery_low: bool,
-    battery_milli_volts: i16,
-    battery_percentage: i8,
-    battery_state: bool,
-    camera_state: u8,
-    down_visual_state: bool,
-    drone_fly_time_left: i16,
-    drone_hover: bool,
-    east_speed: i16,
-    electrical_machinery_state: u8,
-    em_open: bool,
-    error_state: bool,
-    factory_mode: bool,
+    pub battery_critical: bool,
+    pub battery_low: bool,
+    pub battery_milli_volts: i16,
+    pub battery_percentage: i8,
+    pub battery_state: bool,
+    pub camera_state: u8,
+    pub down_visual_state: bool,
+    pub drone_fly_time_left: i16,
+    pub drone_hover: bool,
+    pub east_speed: i16,
+    pub electrical_machinery_state: u8,
+    pub em_open: bool,
+    pub error_state: bool,
+    pub factory_mode: bool,
     pub flying: bool,
-    fly_mode: u8,
-    fly_time: i16,
-    front_in: bool,
-    front_lsc: bool,
-    front_out: bool,
-    gravity_state: bool,
-    height: i16, // seems to be in decimetres
-    imu_calibration_state: i8,
-    imu_state: bool,
-    north_speed: i16,
-    on_ground: bool,
-    outage_recording: bool,
-    power_state: bool,
-    pressure_state: bool,
-    throw_fly_timer: i8,
-    vertical_speed: i16,
-    wind_state: bool,
+    pub fly_mode: u8,
+    pub fly_time: i16,
+    pub front_in: bool,
+    pub front_lsc: bool,
+    pub front_out: bool,
+    pub gravity_state: bool,
+    pub height: i16, // seems to be in decimetres
+    pub imu_calibration_state: i8,
+    pub imu_state: bool,
+    pub north_speed: i16,
+    pub on_ground: bool,
+    pub outage_recording: bool,
+    pub power_state: bool,
+    pub pressure_state: bool,
+    pub throw_fly_timer: i8,
+    pub vertical_speed: i16,
+    pub wind_state: bool,
 }
 
 impl FlightData {

@@ -590,6 +590,14 @@ impl Tello {
 }
 
 impl UpdateData {
+    pub fn default() -> Self {
+        UpdateData {
+            flight: None,
+            wifi: None,
+            light: None,
+            log: None,
+        }
+    }
     pub(crate) fn from_flight_data(flight: FlightData) -> Self {
         Self {
             flight: Some(flight),
