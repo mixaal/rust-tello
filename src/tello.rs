@@ -507,7 +507,7 @@ impl Tello {
 
                 let nread = r.unwrap();
                 tracing::debug!(method_name, nread, "read video stream data");
-                let mut video_packet = buff[2..nread].to_vec();
+                let mut video_packet = buff[0..nread].to_vec();
 
                 video_data.append(&mut video_packet);
                 if nread != 1460 {
