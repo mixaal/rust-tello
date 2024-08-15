@@ -504,6 +504,7 @@ impl Tello {
             let nread = r.unwrap();
             tracing::debug!(method_name, nread, "read video stream data");
             let video_data = buff[2..nread].to_vec();
+            let video_data_len = video_data.len();
             let r = video_channel.send(video_data);
             if r.is_err() {
                 tracing::error!(
@@ -512,6 +513,7 @@ impl Tello {
                     r.err().unwrap()
                 );
             }
+            tracing::debug!(method_name, video_data_len);
         }
     }
 
