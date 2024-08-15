@@ -496,14 +496,24 @@ impl Tello {
         let mut buff: [u8; 2048] = [0; 2048];
 
         loop {
-            let r = self.video_conn.recv(&mut buff);
-            if r.is_err() {
-                tracing::warn!(method_name, "udp read error: {}", r.unwrap_err());
-                continue;
+            let mut video_data = Vec::new();
+            // collect frame
+            loop {
+                let r = self.video_conn.recv(&mut buff);
+                if r.is_err() {
+                    tracing::warn!(method_name, "udp read error: {}", r.unwrap_err());
+                    continue;
+                }
+
+                let nread = r.unwrap();
+                tracing::debug!(method_name, nread, "read video stream data");
+                let mut video_packet = buff[2..nread].to_vec();
+
+                video_data.append(&mut video_packet);
+                if nread != 1460 {
+                    break;
+                }
             }
-            let nread = r.unwrap();
-            tracing::debug!(method_name, nread, "read video stream data");
-            let video_data = buff[2..nread].to_vec();
             let video_data_len = video_data.len();
             let r = video_channel.send(video_data);
             if r.is_err() {
