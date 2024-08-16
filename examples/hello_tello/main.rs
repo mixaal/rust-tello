@@ -8,7 +8,7 @@ pub fn main() {
         .init();
 
     let mut tello = TelloController::new();
-    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let (update_tx, _) = rust_tello::comm_channel();
     let h = tello.start_ctrl_receiver(update_tx);
     tello.connect();
     loop {

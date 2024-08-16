@@ -14,7 +14,7 @@ pub fn main() {
     js.background_handler();
     let mut tello = TelloController::new();
 
-    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let (update_tx, _) = rust_tello::comm_channel();
     let _h = tello.start_ctrl_receiver(update_tx);
 
     tello.connect();

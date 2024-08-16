@@ -10,7 +10,7 @@ pub fn main() {
     let (tx, rx) = mpsc::channel();
     let mut tello = TelloController::new();
 
-    let (update_tx, update_rx) = rust_tello::comm_channel();
+    let (update_tx, _update_rx) = rust_tello::comm_channel();
     let h = tello.start_ctrl_receiver(update_tx);
     tello.start_video_receiver(tx, 262_144);
 

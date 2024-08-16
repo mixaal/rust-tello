@@ -26,13 +26,12 @@
 use chrono::{Datelike, Timelike};
 use std::{
     collections::HashMap,
-    io::Write,
     net::UdpSocket,
     sync::{
         atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering},
         Arc, RwLock,
     },
-    thread::{self, JoinHandle},
+    thread::{self},
     time::{Duration, Instant},
 };
 
@@ -43,7 +42,7 @@ use crate::{
         self, FileChunk, FileInternal, FilePiece, FileType, FlightData, LightData, LogData,
         TelloPacket, WifiData,
     },
-    utils, UpdateData, UpdateDataPublishChannel, VideoPublishChannel, VideoRecvChannel,
+    utils, UpdateData, UpdateDataPublishChannel, VideoPublishChannel,
 };
 
 const RC_VAL_MIN: i16 = 364;
@@ -94,6 +93,7 @@ pub(crate) struct Tello {
     files: Arc<RwLock<HashMap<u16, FileInternal>>>,
     pub(crate) stick: Arc<RwLock<Stick>>,
     pub(crate) flying: Arc<RwLock<bool>>,
+    video_dump_file: String,
 }
 
 impl Clone for Tello {
@@ -112,6 +112,7 @@ impl Clone for Tello {
             files: self.files.clone(),
             stick: self.stick.clone(),
             flying: self.flying.clone(),
+            video_dump_file: self.video_dump_file.clone(),
         }
     }
 }
@@ -122,6 +123,7 @@ static TELLO_CTRL_PACKET_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 impl Tello {
     pub fn new() -> Self {
+        let video_dump_file = format!("./video-{}", utils::now_secs());
         let ctrl_port = *env::ENV_TELLO_CTRL_PORT;
         let local_port = *env::ENV_TELLO_LOCAL_PORT;
         let video_port = *env::ENV_TELLO_VIDEO_PORT;
@@ -144,6 +146,7 @@ impl Tello {
             files: Arc::new(RwLock::new(HashMap::new())),
             stick: Arc::new(RwLock::new(Stick::default())),
             flying: Arc::new(RwLock::new(false)),
+            video_dump_file,
         }
     }
 
@@ -396,13 +399,19 @@ impl Tello {
                 let mut g = self.flying.write().unwrap();
                 *g = flight_data.flying;
                 drop(g);
-                tx.send(UpdateData::from_flight_data(flight_data));
+                let r = tx.send(UpdateData::from_flight_data(flight_data));
+                if r.is_err() {
+                    tracing::error!("unable to send flight data: {}", r.err().unwrap());
+                }
             }
             messages::MSG_LIGHT_STRENGTH => {
                 tracing::info!(method_name, "light strength received");
                 let light_strength = LightData::new(&pkt.payload);
                 tracing::info!(method_name, "light data: {:?}", light_strength);
-                tx.send(UpdateData::from_light_data(light_strength));
+                let r = tx.send(UpdateData::from_light_data(light_strength));
+                if r.is_err() {
+                    tracing::error!("unable to send light health data: {}", r.err().unwrap());
+                }
             }
             messages::MSG_LOG_CONFIG => {
                 tracing::info!(method_name, "log config received");
@@ -416,7 +425,10 @@ impl Tello {
                 let log_data = LogData::new(&pkt.payload);
                 tracing::info!("log_data={:?}", log_data);
                 if log_data.imu.is_some() || log_data.mvo.is_some() {
-                    tx.send(UpdateData::from_log_data(log_data));
+                    let r = tx.send(UpdateData::from_log_data(log_data));
+                    if r.is_err() {
+                        tracing::error!("unable to send flight log data: {}", r.err().unwrap());
+                    }
                 }
             }
             messages::MSG_QUERY_HEIGHT_LIMIT => {
@@ -451,7 +463,10 @@ impl Tello {
                 tracing::info!(method_name, "wifi strength info received");
                 let info = WifiData::new(&pkt.payload);
                 tracing::info!(method_name, "wifi data: {:?}", info);
-                tx.send(UpdateData::from_wifi_data(info));
+                let r = tx.send(UpdateData::from_wifi_data(info));
+                if r.is_err() {
+                    tracing::error!("unable to send wifi data: {}", r.err().unwrap());
+                }
             }
             _ => {
                 let cmd = pkt.message_id;
@@ -508,6 +523,8 @@ impl Tello {
                 let nread = r.unwrap();
                 tracing::debug!(method_name, nread, "read video stream data");
                 let mut video_packet = buff[2..nread].to_vec();
+                // dump all video to file
+                utils::append_to_file(&self.video_dump_file, &video_packet);
 
                 video_data.append(&mut video_packet);
                 // if nread != 1460 {

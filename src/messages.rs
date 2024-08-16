@@ -1383,7 +1383,7 @@ mod tests {
         let subscriber = tracing_subscriber::fmt()
             .with_max_level(tracing::Level::TRACE)
             .finish();
-        let r = tracing::subscriber::set_global_default(subscriber);
+        let _ = tracing::subscriber::set_global_default(subscriber);
 
         // tello.process_packet(&pkt, &update_tx);
         let log_data = LogData::new(&pkt.payload);

@@ -118,34 +118,34 @@ impl<T> Vec3<T> {
 const ONE_DEG_TO_RAD: f64 = std::f64::consts::PI / 180.0;
 
 // QuatToEulerDeg converts a quaternion set into pitch, roll & yaw expressed in degrees
-pub(crate) fn quat_to_euler_deg(qX: f32, qY: f32, qZ: f32, qW: f32) -> (f64, f64, f64) {
-    let qqX = qX as f64;
-    let qqY = qY as f64;
-    let qqZ = qZ as f64;
-    let qqW = qW as f64;
-    let sqX = qqX * qqX;
-    let sqY = qqY * qqY;
-    let sqZ = qqZ * qqZ;
+pub(crate) fn quat_to_euler_deg(q_x: f32, q_y: f32, q_z: f32, q_w: f32) -> (f64, f64, f64) {
+    let qq_x = q_x as f64;
+    let qq_y = q_y as f64;
+    let qq_z = q_z as f64;
+    let qq_w = q_w as f64;
+    let sq_x = qq_x * qq_x;
+    let sq_y = qq_y * qq_y;
+    let sq_z = qq_z * qq_z;
 
-    let sinR = 2.0 * (qqW * qqX + qqY * qqZ);
-    let cosR = 1.0 - 2.0 * (sqX + sqY);
-    let roll = sinR.atan2(cosR) / ONE_DEG_TO_RAD;
+    let sin_r = 2.0 * (qq_w * qq_x + qq_y * qq_z);
+    let cos_r = 1.0 - 2.0 * (sq_x + sq_y);
+    let roll = sin_r.atan2(cos_r) / ONE_DEG_TO_RAD;
 
     //roll = int(math.Round(math.Atan2(sinR, cosR) / degree))
 
-    let mut sinP = 2.0 * (qqW * qqY - qqZ * qqX);
-    if sinP > 1.0 {
-        sinP = 1.0;
+    let mut sin_p = 2.0 * (qq_w * qq_y - qq_z * qq_x);
+    if sin_p > 1.0 {
+        sin_p = 1.0;
     }
-    if sinP < -1.0 {
-        sinP = -1.0;
+    if sin_p < -1.0 {
+        sin_p = -1.0;
     }
-    let pitch = sinP.asin() / ONE_DEG_TO_RAD;
+    let pitch = sin_p.asin() / ONE_DEG_TO_RAD;
 
-    let sinY = 2.0 * (qqW * qqZ + qqX * qqY);
-    let cosY = 1.0 - 2.0 * (sqY + sqZ);
+    let sin_y = 2.0 * (qq_w * qq_z + qq_x * qq_y);
+    let cos_y = 1.0 - 2.0 * (sq_y + sq_z);
     //yaw = int(math.Round(math.Atan2(sinY, cosY) / degree))
-    let yaw = sinY.atan2(cosY) / ONE_DEG_TO_RAD;
+    let yaw = sin_y.atan2(cos_y) / ONE_DEG_TO_RAD;
 
     (pitch, roll, yaw)
 }
