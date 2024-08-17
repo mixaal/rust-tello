@@ -158,13 +158,9 @@ impl TelloController {
     }
 
     // Captures the video data
-    pub fn start_video_receiver(
-        &self,
-        video_channel: VideoPublishChannel,
-        min_size: usize,
-    ) -> JoinHandle<()> {
+    pub fn start_video_receiver(&self, video_channel: VideoPublishChannel) -> JoinHandle<()> {
         let self_local = self.inner.clone();
-        let j = thread::spawn(move || self_local.video_receiver(video_channel, min_size));
+        let j = thread::spawn(move || self_local.video_receiver(video_channel));
         j
     }
 

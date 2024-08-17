@@ -506,7 +506,7 @@ impl Tello {
         }
     }
 
-    pub(crate) fn video_receiver(&self, video_channel: VideoPublishChannel, min_size: usize) {
+    pub(crate) fn video_receiver(&self, video_channel: VideoPublishChannel) {
         let method_name = "video_recv";
         let mut buff: [u8; 2048] = [0; 2048];
 
