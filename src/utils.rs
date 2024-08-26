@@ -63,7 +63,7 @@ pub fn udp_sock_clone(s: &UdpSocket) -> UdpSocket {
     r.unwrap()
 }
 
-pub fn append_to_file(path: &str, buffer: &Vec<u8>) {
+pub fn append_to_file(path: &str, buffer: Vec<u8>) {
     let mut file = OpenOptions::new()
         .create(true)
         .write(true)
@@ -166,14 +166,6 @@ pub(crate) fn get_i16(buff: &Vec<u8>, lo_idx: usize, hi_idx: usize) -> i16 {
     _i16(buff[lo_idx], buff[hi_idx])
 }
 
-pub(crate) fn make<T>(len: usize) -> Vec<T> {
-    let mut v = Vec::with_capacity(len);
-    unsafe {
-        v.set_len(len);
-    }
-    v
-}
-
 pub(crate) fn bytes_to_f32(buff: &Vec<u8>, index: usize) -> Result<f32, String> {
     if index + 3 >= buff.len() {
         return Err("buffer len not sufficient to contain f32 number".to_owned());
@@ -204,16 +196,4 @@ pub(crate) fn decode_buffer(
         i += 1;
     }
     out
-}
-
-#[cfg(test)]
-mod test {
-    use super::make;
-
-    #[test]
-    fn test_make() {
-        let mut x = make::<u8>(256);
-        x[255] = 1;
-        println!("{:?}", x);
-    }
 }

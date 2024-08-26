@@ -83,7 +83,7 @@ impl TelloController {
             }
             err_cnt = 0; //reset error counter
             let video_data = video_data.unwrap();
-            utils::append_to_file("video.dump", &video_data);
+            utils::append_to_file("video.dump", video_data.clone());
             let r = stdin.write_all(&video_data);
             if r.is_err() {
                 tracing::warn!(

@@ -522,7 +522,7 @@ impl Tello {
             let video_packet = buff[2..nread].to_vec();
 
             // dump all video to file
-            utils::append_to_file(&self.video_dump_file, &video_packet);
+            utils::append_to_file(&self.video_dump_file, video_packet.clone());
             let video_data_len = video_packet.len();
             let r = video_channel.send(video_packet);
             if r.is_err() {
