@@ -15,7 +15,7 @@ use tello::{Stick, Tello};
 pub(crate) mod crc;
 pub(crate) mod dump;
 pub(crate) mod env;
-pub(crate) mod messages;
+pub mod messages;
 pub(crate) mod tello;
 pub(crate) mod utils;
 

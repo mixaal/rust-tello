@@ -31,3 +31,7 @@ path = "examples/video/main.rs"
 [[example]]
 name = "fly_tello"
 path = "examples/fly/main.rs"
+
+[[example]]
+name = "comm_parser"
+path = "examples/parse/main.rs"

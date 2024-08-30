@@ -62,51 +62,51 @@ const logRecIMU: u16 = 0x0800;
 
 const _MSG_DO_CONNECT: u16 = 0x0001; // 1
 const _MSG_CONNECTED: u16 = 0x0002; // 2
-pub(crate) const MSG_QUERY_SSID: u16 = 0x0011; // 17
+pub const MSG_QUERY_SSID: u16 = 0x0011; // 17
 const _MSG_SET_SSID: u16 = 0x0012; // 18
 const _MSG_QUERY_SSIDPASS: u16 = 0x0013; // 19
 const _MSG_SET_SSIDPASS: u16 = 0x0014; // 20
 const _MSG_QUERY_WIFI_REGION: u16 = 0x0015; // 21
 const _MSG_SET_WIFI_REGION: u16 = 0x0016; // 22
-pub(crate) const MSG_WIFI_STRENGTH: u16 = 0x001a; // 26
+pub const MSG_WIFI_STRENGTH: u16 = 0x001a; // 26
 const MSG_SET_VIDEO_BITRATE: u16 = 0x0020; // 32
 const _MSG_SET_DYN_ADJ_RATE: u16 = 0x0021; // 33
 const _MSG_EIS_SETTING: u16 = 0x0024; // 36
 const MSG_QUERY_VIDEO_SPSPPS: u16 = 0x0025; // 37
-pub(crate) const MSG_QUERY_VIDEO_BITRATE: u16 = 0x0028; // 40
-pub(crate) const MSG_DO_TAKE_PIC: u16 = 0x0030; // 48
-pub(crate) const MSG_SWITCH_PIC_VIDEO: u16 = 0x0031; // 49
+pub const MSG_QUERY_VIDEO_BITRATE: u16 = 0x0028; // 40
+pub const MSG_DO_TAKE_PIC: u16 = 0x0030; // 48
+pub const MSG_SWITCH_PIC_VIDEO: u16 = 0x0031; // 49
 const _MSG_DO_START_REC: u16 = 0x0032; // 50
 const _MSG_EXPOSURE_VALS: u16 = 0x0034; // 52 (Get or set?)
-pub(crate) const MSG_LIGHT_STRENGTH: u16 = 0x0035; // 53
+pub const MSG_LIGHT_STRENGTH: u16 = 0x0035; // 53
 const _MSG_QUERY_JPEGQUALITY: u16 = 0x0037; // 55
 const _MSG_ERROR1: u16 = 0x0043; // 67
 const _MSG_ERROR2: u16 = 0x0044; // 68
-pub(crate) const MSG_QUERY_VERSION: u16 = 0x0045; // 69
-pub(crate) const MSG_SET_DATE_TIME: u16 = 0x0046; // 70
+pub const MSG_QUERY_VERSION: u16 = 0x0045; // 69
+pub const MSG_SET_DATE_TIME: u16 = 0x0046; // 70
 const _MSG_QUERY_ACTIVATION_TIME: u16 = 0x0047; // 71
 const _MSG_QUERY_LOADER_VERSION: u16 = 0x0049; // 73
 const MSG_SET_STICK: u16 = 0x0050; // 80
-pub(crate) const MSG_DO_TAKEOFF: u16 = 0x0054; // 84
-pub(crate) const MSG_DO_LAND: u16 = 0x0055; // 85
-pub(crate) const MSG_FLIGHT_STATUS: u16 = 0x0056; // 86
+pub const MSG_DO_TAKEOFF: u16 = 0x0054; // 84
+pub const MSG_DO_LAND: u16 = 0x0055; // 85
+pub const MSG_FLIGHT_STATUS: u16 = 0x0056; // 86
 const _MSG_SET_HEIGHT_LIMIT: u16 = 0x0058; // 88
 const MSG_DO_FLIP: u16 = 0x005c; // 92
 const MSG_DO_THROW_TAKEOFF: u16 = 0x005d; // 93
 const MSG_DO_PALM_LAND: u16 = 0x005e; // 94
-pub(crate) const MSG_FILE_SIZE: u16 = 0x0062; // 98
-pub(crate) const MSG_FILE_DATA: u16 = 0x0063; // 99
+pub const MSG_FILE_SIZE: u16 = 0x0062; // 98
+pub const MSG_FILE_DATA: u16 = 0x0063; // 99
 const MSG_FILE_DONE: u16 = 0x0064; // 100
 const MSG_DO_SMART_VIDEO: u16 = 0x0080; // 128
-pub(crate) const MSG_SMART_VIDEO_STATUS: u16 = 0x0081; // 129
-pub(crate) const MSG_LOG_HEADER: u16 = 0x1050; // 4176
-pub(crate) const MSG_LOG_DATA: u16 = 0x1051; // 4177
-pub(crate) const MSG_LOG_CONFIG: u16 = 0x1052; // 4178
+pub const MSG_SMART_VIDEO_STATUS: u16 = 0x0081; // 129
+pub const MSG_LOG_HEADER: u16 = 0x1050; // 4176
+pub const MSG_LOG_DATA: u16 = 0x1051; // 4177
+pub const MSG_LOG_CONFIG: u16 = 0x1052; // 4178
 const MSG_DO_BOUNCE: u16 = 0x1053; // 4179
 const _MSG_DO_CALIBRATION: u16 = 0x1054; // 4180
-pub(crate) const MSG_SET_LOW_BATT_THRESH: u16 = 0x1055; // 4181
-pub(crate) const MSG_QUERY_HEIGHT_LIMIT: u16 = 0x1056; // 4182
-pub(crate) const MSG_QUERY_LOW_BATT_THRESH: u16 = 0x1057; // 4183
+pub const MSG_SET_LOW_BATT_THRESH: u16 = 0x1055; // 4181
+pub const MSG_QUERY_HEIGHT_LIMIT: u16 = 0x1056; // 4182
+pub const MSG_QUERY_LOW_BATT_THRESH: u16 = 0x1057; // 4183
 const _MSG_SET_ATTITUDE: u16 = 0x1058; // 4184
 const MSG_QUERY_ATTITUDE: u16 = 0x1059; // 4185
 
@@ -465,7 +465,7 @@ const logValidPosX: u8 = 0x20;
 const logValidPosZ: u8 = 0x40;
 
 impl LogData {
-    pub(crate) fn new(data: &Vec<u8>) -> Self {
+    pub fn new(data: &Vec<u8>) -> Self {
         let mut pos = 1;
         if data.len() < 2 {
             return Self {
@@ -584,7 +584,7 @@ impl LogData {
 pub struct FlightData {
     pub battery_critical: bool,
     pub battery_low: bool,
-    pub battery_milli_volts: u16,
+    pub battery_milli_volts: f32,
     pub battery_percentage: i8,
     pub battery_state: bool,
     pub camera_state: u8,
@@ -598,7 +598,7 @@ pub struct FlightData {
     pub factory_mode: bool,
     pub flying: bool,
     pub fly_mode: u8,
-    pub fly_time: i16,
+    pub fly_time: f32,
     pub front_in: bool,
     pub front_lsc: bool,
     pub front_out: bool,
@@ -623,7 +623,7 @@ impl FlightData {
             north_speed: ((pl[2] as u16) | (pl[3] as u16) << 8) as i16,
             east_speed: (pl[4] as i16) | (pl[5] as i16) << 8,
             vertical_speed: (pl[6] as i16) | (pl[7] as i16) << 8,
-            fly_time: (pl[8] as i16) | (pl[9] as i16) << 8,
+            fly_time: ((pl[8] as i16) | (pl[9] as i16) << 8) as f32 / 10.0,
 
             imu_state: (pl[10] & 1) == 1,
             pressure_state: (pl[10] >> 1 & 1) == 1,
@@ -637,7 +637,7 @@ impl FlightData {
             imu_calibration_state: pl[11] as i8,
             battery_percentage: pl[12] as i8,
             drone_fly_time_left: (pl[13] as i16) + (pl[14] as i16) << 8,
-            battery_milli_volts: (pl[15] as u16) + (pl[16] as u16) << 8,
+            battery_milli_volts: ((pl[15] as u16) + (pl[16] as u16) << 8) as f32 / 10.0,
 
             flying: (pl[17] & 1) == 1,
             on_ground: (pl[17] >> 1 & 1) == 1,
