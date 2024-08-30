@@ -584,7 +584,7 @@ impl LogData {
 pub struct FlightData {
     pub battery_critical: bool,
     pub battery_low: bool,
-    pub battery_milli_volts: i16,
+    pub battery_milli_volts: u16,
     pub battery_percentage: i8,
     pub battery_state: bool,
     pub camera_state: u8,
@@ -637,7 +637,7 @@ impl FlightData {
             imu_calibration_state: pl[11] as i8,
             battery_percentage: pl[12] as i8,
             drone_fly_time_left: (pl[13] as i16) + (pl[14] as i16) << 8,
-            battery_milli_volts: (pl[15] as i16) + (pl[16] as i16) << 8,
+            battery_milli_volts: (pl[15] as u16) + (pl[16] as u16) << 8,
 
             flying: (pl[17] & 1) == 1,
             on_ground: (pl[17] >> 1 & 1) == 1,
